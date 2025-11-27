@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Funcionário - Área Restrita</title>
+    <style>
+        /* ESTILOS DA NAVBAR */
+        .navbar {
+            background-color: #333;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            color: white;
+            font-size: 1.5em;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .navbar-links a,
+        #logout-btn {
+            color: white;
+            text-decoration: none;
+            padding: 8px 15px;
+            margin-left: 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 1em;
+        }
+
+        .navbar-links a:hover,
+        #logout-btn:hover {
+            background-color: #555;
+        }
+
+        /* ESTILOS PRINCIPAIS */
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #007bff;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+        }
+
+        .user-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        #enrollments-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 20px;
+        }
+
+        .enrollment-item {
+            border: 1px solid #ddd;
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .enrollment-item strong {
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .loading-message {
+            padding: 15px;
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            border-radius: 4px;
+        }
+
+        .error-message {
+            padding: 15px;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar">
+        <a href="escola-front.html" class="navbar-brand">🔑 Área do Funcionário</a>
+        <div class="navbar-links">
+            <span id="user-email" style="color: #ccc; margin-right: 15px;">Carregando...</span>
+            <button id="logout-btn">Sair</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>Dashboard de Matrículas</h1>
+        <div id="status-message" class="loading-message">
+            Buscando dados de matrículas...
+        </div>
+
+        <h2>Lista de Alunos Matriculados</h2>
+        <ul id="enrollments-list">
+            </ul>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:3000';
+        const API_ENROLLMENTS = `${BASE_URL}/enrollments`;
+        const LOGIN_PAGE = 'employee.html';
+
+        // Função para decodificar o JWT (simples)
+        function decodeJwt(token) {
+            try {
+                // O payload é a segunda parte do token (separada por pontos)
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                // Decodifica a string Base64 e converte para JSON
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error("Erro ao decodificar token:", e);
+                return null;
+            }
+        }
+
+        // Função de Logout
+        function logout() {
+            localStorage.removeItem('access_token');
+            window.location.href = LOGIN_PAGE;
+        }
+
+        // Função para redirecionar se não houver token
+        function checkAuthentication() {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                logout();
+                return null; // Retorna null se não houver token
+            }
+            
+            // Decodifica o token para mostrar o email do usuário
+            const payload = decodeJwt(token);
+            if (payload && payload.useremail) {
+                 document.getElementById('user-email').textContent = `Usuário: ${payload.useremail}`;
+            } else {
+                 document.getElementById('user-email').textContent = `Usuário autenticado`;
+            }
+            return token; // Retorna o token se estiver presente
+        }
+
+        // Função para buscar matrículas
+        async function fetchEnrollments(token) {
+            const statusDiv = document.getElementById('status-message');
+            const listUl = document.getElementById('enrollments-list');
+            statusDiv.className = 'loading-message';
+            statusDiv.textContent = 'Buscando dados de matrículas...';
+            listUl.innerHTML = '';
+
+            try {
+                const response = await fetch(API_ENROLLMENTS, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`, // 🚨 Envia o token para autorização
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    // Token inválido ou expirado
+                    logout();
+                    return; 
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+                }
+
+                const enrollments = await response.json();
+
+                statusDiv.className = 'success';
+                statusDiv.textContent = `Matrículas carregadas com sucesso (${enrollments.length} encontradas).`;
+                
+                if (enrollments.length === 0) {
+                    listUl.innerHTML = '<li>Nenhuma matrícula encontrada no sistema.</li>';
+                    return;
+                }
+
+                enrollments.forEach(e => {
+                    const item = document.createElement('li');
+                    item.className = 'enrollment-item';
+                    
+                    // Formata a data de criação
+                    const createdAt = new Date(e.createdAt).toLocaleDateString('pt-BR', {
+                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    
+                    // Exibe o nome do curso se a matrícula tiver a relação 'course' (depende do seu backend)
+                    const courseName = e.course ? e.course.course : 'ID ' + (e.courseId || 'N/A');
+
+                    item.innerHTML = `
+                        <strong>ID da Matrícula:</strong> ${e.id} <br>
+                        <strong>Aluno:</strong> ${e.studentname} <br>
+                        <strong>Curso:</strong> ${courseName} <br>
+                        Email: ${e.studentemail} | CPF: ${e.studentCpf} <br>
+                        Telefone: ${e.phone} | Data Nasc.: ${e.birthdate} <br>
+                        Data da Matrícula: ${createdAt}
+                    `;
+                    listUl.appendChild(item);
+                });
+
+            } catch (error) {
+                statusDiv.className = 'error-message';
+                statusDiv.textContent = `Erro ao buscar matrículas: ${error.message}. Verifique a rota /enrollments no NestJS.`;
+                console.error('Erro de Fetch Matrículas:', error);
+            }
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = checkAuthentication();
+            if (token) {
+                fetchEnrollments(token);
+            }
+            document.getElementById('logout-btn').addEventListener('click', logout);
+        });
+    </script>
+
+</body>
+
+</html>

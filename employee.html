@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    
+    <meta charset="UTF-8">
+     
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Área do Funcionário</title>
+     <style>
+        /* ESTILOS DA NAVBAR (IGUAIS AO escola-front.html) */
+        .navbar {
+            background-color: #333;
+            padding: 10px 20px;
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .navbar-brand {
+            color: white;
+            font-size: 1.5em;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .navbar-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 15px;
+            margin-left: 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .navbar-links a:hover {
+            background-color: #555;
+        }
+
+        /* ESTILOS PRINCIPAIS */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .login-box {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 350px;
+            margin-top: auto;
+            margin-bottom: auto;
+        }
+
+        h2 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+
+<body>
+
+      <div class="navbar">
+         <a href="escola-front.html" class="navbar-brand">🏫 Escola App</a>
+         <div class="navbar-links">
+            <a href="escola-front.html">Matrículas</a>
+             <a href="employee.html">🔑 Área do Funcionário</a>
+             </div>
+         </div>
+     
+      <div class="login-box">
+        <h2>Área do Funcionário</h2>
+          <form id="loginForm">
+            <label for="username">Email ou Usuário:</label>
+             <input type="text" id="username" required>
+
+             <label for="password">Senha:</label>
+             <input type="password" id="password" required>
+
+             <button type="submit">Entrar</button>
+             </form>
+         <div id="message"></div>
+         </div>
+
+    
+    <script>
+
+        const BASE_URL = 'http://localhost:3000';
+        const API_LOGIN = `${BASE_URL}/auth/login`;
+       
+        const AUTH_TOKEN_KEY = 'access_token';
+
+        document.getElementById('loginForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = '';
+            messageDiv.textContent = 'Autenticando...';
+
+            const loginData = {
+                useremail: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            };
+            try {
+                const response = await fetch(API_LOGIN, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(loginData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.access_token) {
+                   
+                    localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
+
+                    messageDiv.className = 'success';
+                    messageDiv.textContent = 'Login realizado com sucesso! Redirecionando...';
+
+                    setTimeout(() => {
+                       
+                        window.location.href = 'employee_dashboard.html';
+                    }, 1500);
+
+                } else {
+                    messageDiv.className = 'error';
+                    
+                    const errorMessage = result.message || 'Credenciais inválidas.';
+                    messageDiv.textContent = `Falha no Login: ${errorMessage}`;
+                }
+
+            } catch (error) {
+                messageDiv.className = 'error';
+                messageDiv.textContent = `Erro de conexão: Não foi possível alcançar o servidor NestJS.`;
+                console.error('Erro de Fetch Login:', error);
+            }
+        });
+    </script>
+
+</body>
+
+</html>
